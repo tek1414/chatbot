@@ -50,6 +50,11 @@
 
     function botReply(msg) {
       msg = msg.toLowerCase();
+      function isSimilar(a, b) {
+  if (a.length < 5) return levenshtein.distance(a, b) <= 1;
+  if (a.length < 8) return levenshtein.distance(a, b) <= 2;
+  return levenshtein.distance(a, b) <= 3;
+}
       const qa = [
         { keywords: ["connexion", "xflow"], answer: "Si vous ne pouvez pas vous connecter à XFlow, contactez xFlowInvoice-administration@grohe.com." },
         { keywords: ["accès", "xflow"], answer: "Pour demander un accès XFlow, écrivez à xFlowInvoice-administration@grohe.com." },
