@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <title>Chatbot XFlow</title>
-  <script src="https://cdn.jsdelivr.net/npm/fastest-levenshtein@1.0.12/levenshtein.min.js"
-    integrity="sha384-xxxxxxxxxx" crossorigin="anonymous" onerror="handleScriptError()"></script>
+  <!-- Corrected script tag without integrity and crossorigin attributes -->
+  <script src="https://cdn.jsdelivr.net/npm/fastest-levenshtein@1.0.12/levenshtein.min.js" onerror="handleScriptError()"></script>
   <style>
     #chatbox {
       width: 100%;
@@ -14,7 +14,9 @@
       font-family: sans-serif;
       background: white;
       box-sizing: border-box;
-      margin: 0 auto;
+      margin: 20px auto;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
     #chatlog {
       height: 200px;
@@ -82,13 +84,12 @@
     function handleScriptError() {
       errorMessage.style.display = 'block';
       errorMessage.textContent = "Erreur de chargement du script. Veuillez vérifier votre connexion.";
+      chatForm.style.display = 'none';
     }
 
     // Prevent form submission if Levenshtein is not loaded
     if (typeof levenshtein === 'undefined') {
-      chatForm.style.display = 'none';
-      errorMessage.style.display = 'block';
-      errorMessage.textContent = "Le service est actuellement indisponible. Veuillez réessayer plus tard.";
+      handleScriptError();
     }
 
     chatForm.addEventListener('submit', function(event) {
@@ -118,7 +119,7 @@
       messageDiv.appendChild(bold);
       
       const messageText = document.createElement('span');
-      messageText.textContent = text;
+      messageText.innerHTML = sanitizeInput(text); // Use sanitized input
       messageDiv.appendChild(messageText);
       
       chatlog.appendChild(messageDiv);
@@ -156,7 +157,18 @@
       { keywords: ["délai", "paiement"], answer: "Si tout est validé mardi, le paiement est déclenché vendredi et visible sur le compte fournisseur le mardi suivant." }
     ];
 
+    // Sanitize user input to prevent XSS
+    function sanitizeInput(input) {
+      const div = document.createElement('div');
+      div.textContent = input;
+      return div.innerHTML;
+    }
+
     function botReply(msg) {
+      if (typeof levenshtein === 'undefined') {
+        return "Le service de réponse n'est pas disponible actuellement.";
+      }
+
       msg = msg.toLowerCase();
       let bestMatch = null;
       let highestScore = 0;
