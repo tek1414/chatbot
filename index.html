@@ -3,96 +3,180 @@
 <head>
   <meta charset="UTF-8">
   <title>Chatbot XFlow</title>
-  <script src="https://cdn.jsdelivr.net/npm/fastest-levenshtein@1.0.12/levenshtein.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fastest-levenshtein@1.0.12/levenshtein.min.js"
+    integrity="sha384-xxxxxxxxxx" crossorigin="anonymous" onerror="handleScriptError()"></script>
   <style>
     #chatbox {
-      width: 350px;
+      width: 100%;
+      max-width: 400px;
       border: 1px solid #ccc;
       padding: 8px;
       font-family: sans-serif;
       background: white;
+      box-sizing: border-box;
+      margin: 0 auto;
     }
     #chatlog {
       height: 200px;
       overflow-y: auto;
-      font-size: 13px;
-      padding: 4px;
-      margin: 4px 0;
+      font-size: 14px;
+      padding: 8px;
+      margin: 8px 0;
       background: #f7f7f7;
+      border-radius: 4px;
+    }
+    .message {
+      margin-bottom: 10px;
+    }
+    .user {
+      font-weight: bold;
+      color: #333;
+    }
+    .bot {
+      font-weight: bold;
+      color: #007BFF;
     }
     input {
       width: 70%;
+      padding: 6px;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      padding: 6px 12px;
+      border: none;
+      background-color: #007BFF;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    #error-message {
+      color: red;
+      display: none;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
   <div id="chatbox">
     <b>Chatbot XFlow</b>
-    <div id="chatlog"></div>
-    <form onsubmit="event.preventDefault();sendMsg()">
-      <input id="userinput" autocomplete="off" placeholder="Posez votre question..." />
-      <button>Envoyer</button>
+    <div id="chatlog" aria-live="polite"></div>
+    <form id="chat-form">
+      <input id="userinput" autocomplete="off" placeholder="Posez votre question..." aria-label="User input" required />
+      <button type="submit">Envoyer</button>
     </form>
+    <div id="error-message">Désolé, une erreur est survenue. Veuillez réessayer plus tard.</div>
   </div>
 
   <script>
-    let chatlog = document.getElementById('chatlog');
+    const chatlog = document.getElementById('chatlog');
+    const chatForm = document.getElementById('chat-form');
+    const userInput = document.getElementById('userinput');
+    const errorMessage = document.getElementById('error-message');
+
+    // Handle external script loading errors
+    function handleScriptError() {
+      errorMessage.style.display = 'block';
+      errorMessage.textContent = "Erreur de chargement du script. Veuillez vérifier votre connexion.";
+    }
+
+    // Prevent form submission if Levenshtein is not loaded
+    if (typeof levenshtein === 'undefined') {
+      chatForm.style.display = 'none';
+      errorMessage.style.display = 'block';
+      errorMessage.textContent = "Le service est actuellement indisponible. Veuillez réessayer plus tard.";
+    }
+
+    chatForm.addEventListener('submit', function(event) {
+      event.preventDefault();
+      sendMsg();
+    });
 
     function sendMsg() {
-      let user = document.getElementById('userinput').value;
-      if (user.trim() === '') return;
-      chatlog.innerHTML += `<div><b>Vous :</b> ${user}</div>`;
-      let bot = botReply(user);
-      chatlog.innerHTML += `<div><b>Bot :</b> ${bot}</div>`;
-      document.getElementById('userinput').value = '';
+      const userText = userInput.value.trim();
+      if (userText === '') return;
+
+      appendMessage('user', userText);
+      userInput.value = '';
+      userInput.focus();
+
+      const botResponse = botReply(userText);
+      appendMessage('bot', botResponse);
+      scrollChatToBottom();
+    }
+
+    function appendMessage(sender, text) {
+      const messageDiv = document.createElement('div');
+      messageDiv.classList.add('message', sender);
+      
+      const bold = document.createElement('b');
+      bold.textContent = sender === 'user' ? 'Vous : ' : 'Bot : ';
+      messageDiv.appendChild(bold);
+      
+      const messageText = document.createElement('span');
+      messageText.textContent = text;
+      messageDiv.appendChild(messageText);
+      
+      chatlog.appendChild(messageDiv);
+    }
+
+    function scrollChatToBottom() {
       chatlog.scrollTop = chatlog.scrollHeight;
     }
 
+    const qa = [
+      { keywords: ["connexion", "xflow"], answer: "Si vous ne pouvez pas vous connecter à XFlow, contactez xFlowInvoice-administration@grohe.com." },
+      { keywords: ["accès", "xflow"], answer: "Pour demander un accès XFlow, écrivez à xFlowInvoice-administration@grohe.com." },
+      { keywords: ["notification", "mail"], answer: "Vérifiez que vos mails ne vont pas dans les spams et que vous êtes bien assigné au workflow dans XFlow." },
+      { keywords: ["web", "xflow"], answer: "Vous pouvez accéder à XFlow Web via Citrix ici : https://sapgde.germany.central-it.grohe:44300/..." },
+      { keywords: ["business", "workplace"], answer: "Oui, vous pouvez aussi utiliser SAP Business Workplace pour traiter vos tâches XFlow." },
+      { keywords: ["non payé", "pas payé", "reçu paiement", "fournisseur"], answer: "Envoyez un mail à PTP_SouthEU@emena.grohe.com pour vérifier si la facture a été comptabilisée et payée. Pour une preuve de paiement, contactez comptabilite.grohe.FR@lixil.com." },
+      { keywords: ["preuve", "paiement"], answer: "Contactez comptabilite.grohe.FR@lixil.com pour obtenir une preuve de paiement." },
+      { keywords: ["ne me concerne pas"], answer: "Utilisez le bouton 'Forward' dans XFlow pour transférer la facture à la bonne personne." },
+      { keywords: ["plusieurs factures", "2 factures"], answer: "Utilisez les détails (n° de fournisseur, PO, etc.) pour différencier les factures dans XFlow." },
+      { keywords: ["facture rejetée"], answer: "Vérifiez si la facture respecte les règles d’envoi. Sinon, elle est rejetée par l’OCR et renvoyée par mail." },
+      { keywords: ["retrouver", "facture traitée"], answer: "Vous pouvez rechercher une facture déjà traitée par fournisseur ou numéro via la fonction de recherche dans XFlow." },
+      { keywords: ["modifier", "facture"], answer: "Les factures ne peuvent pas être modifiées directement dans XFlow. Refusez et demandez une nouvelle facture au fournisseur." },
+      { keywords: ["po manquant", "pas de po"], answer: "Indiquez le PO dans le champ texte du workflow, puis cliquez sur 'Save'. La compta reprendra le traitement." },
+      { keywords: ["ok", "not ok"], answer: "'OK' valide la facture, 'Not OK' la rejette avec justification. Utilisez selon l’exactitude des données (quantité, prix, etc.)." },
+      { keywords: ["pièce jointe", "commentaire"], answer: "Cliquez sur 'Create Attachment' ou ajoutez un commentaire dans le champ texte." },
+      { keywords: ["blocage", "prix", "quantité"], answer: "Blocage prix : vérifiez le prix et validez ou refusez. Blocage quantité : faites la réception dans Ariba avant validation." },
+      { keywords: ["réception", "ariba"], answer: "Oui, la réception dans Ariba doit être faite avant de valider la facture dans XFlow." },
+      { keywords: ["mauvaise quantité"], answer: "Refusez la facture via 'Not OK' et indiquez le motif dans le champ texte." },
+      { keywords: ["poser une question"], answer: "Utilisez le bouton 'Inquiry' pour poser une question à un collègue dans le workflow." },
+      { keywords: ["plus dans sap"], answer: "Si vous ouvrez une tâche dans XFlow Web, elle ne s’affiche plus dans SAP Business Workplace. Utilisez 'Replace' pour la rendre à nouveau visible." },
+      { keywords: ["envoyer", "facture"], answer: "Envoyez les factures à grohe.accountspayable.fr@grohe.com (XFlow)." },
+      { keywords: ["relance", "fournisseur"], answer: "Envoyez toute relance à PTP_SouthEU@emena.grohe.com." },
+      { keywords: ["modèle mail", "mail type"], answer: "Vous trouverez les mails types sur le SharePoint Finance > section Comptabilité Fournisseurs." },
+      { keywords: ["demande", "acompte"], answer: "Remplissez le formulaire disponible sur le SharePoint, avec PO, RIB, signature manager. À envoyer avant mardi soir." },
+      { keywords: ["délai", "paiement"], answer: "Si tout est validé mardi, le paiement est déclenché vendredi et visible sur le compte fournisseur le mardi suivant." }
+    ];
+
     function botReply(msg) {
       msg = msg.toLowerCase();
-      function isSimilar(a, b) {
-  if (a.length < 5) return levenshtein.distance(a, b) <= 1;
-  if (a.length < 8) return levenshtein.distance(a, b) <= 2;
-  return levenshtein.distance(a, b) <= 3;
-}
-      const qa = [
-        { keywords: ["connexion", "xflow"], answer: "Si vous ne pouvez pas vous connecter à XFlow, contactez xFlowInvoice-administration@grohe.com." },
-        { keywords: ["accès", "xflow"], answer: "Pour demander un accès XFlow, écrivez à xFlowInvoice-administration@grohe.com." },
-        { keywords: ["notification", "mail"], answer: "Vérifiez que vos mails ne vont pas dans les spams et que vous êtes bien assigné au workflow dans XFlow." },
-        { keywords: ["web", "xflow"], answer: "Vous pouvez accéder à XFlow Web via Citrix ici : https://sapgde.germany.central-it.grohe:44300/..." },
-        { keywords: ["business", "workplace"], answer: "Oui, vous pouvez aussi utiliser SAP Business Workplace pour traiter vos tâches XFlow." },
-        { keywords: ["non payé", "pas payé", "reçu paiement", "fournisseur"], answer: "Envoyez un mail à PTP_SouthEU@emena.grohe.com pour vérifier si la facture a été comptabilisée et payée. Pour une preuve de paiement, contactez comptabilite.grohe.FR@lixil.com." },
-        { keywords: ["preuve", "paiement"], answer: "Contactez comptabilite.grohe.FR@lixil.com pour obtenir une preuve de paiement." },
-        { keywords: ["ne me concerne pas"], answer: "Utilisez le bouton 'Forward' dans XFlow pour transférer la facture à la bonne personne." },
-        { keywords: ["plusieurs factures", "2 factures"], answer: "Utilisez les détails (n° de fournisseur, PO, etc.) pour différencier les factures dans XFlow." },
-        { keywords: ["facture rejetée"], answer: "Vérifiez si la facture respecte les règles d’envoi. Sinon, elle est rejetée par l’OCR et renvoyée par mail." },
-        { keywords: ["retrouver", "facture traitée"], answer: "Vous pouvez rechercher une facture déjà traitée par fournisseur ou numéro via la fonction de recherche dans XFlow." },
-        { keywords: ["modifier", "facture"], answer: "Les factures ne peuvent pas être modifiées directement dans XFlow. Refusez et demandez une nouvelle facture au fournisseur." },
-        { keywords: ["po manquant", "pas de po"], answer: "Indiquez le PO dans le champ texte du workflow, puis cliquez sur 'Save'. La compta reprendra le traitement." },
-        { keywords: ["ok", "not ok"], answer: "'OK' valide la facture, 'Not OK' la rejette avec justification. Utilisez selon l’exactitude des données (quantité, prix, etc.)." },
-        { keywords: ["pièce jointe", "commentaire"], answer: "Cliquez sur 'Create Attachment' ou ajoutez un commentaire dans le champ texte." },
-        { keywords: ["blocage", "prix", "quantité"], answer: "Blocage prix : vérifiez le prix et validez ou refusez. Blocage quantité : faites la réception dans Ariba avant validation." },
-        { keywords: ["réception", "ariba"], answer: "Oui, la réception dans Ariba doit être faite avant de valider la facture dans XFlow." },
-        { keywords: ["mauvaise quantité"], answer: "Refusez la facture via 'Not OK' et indiquez le motif dans le champ texte." },
-        { keywords: ["poser une question"], answer: "Utilisez le bouton 'Inquiry' pour poser une question à un collègue dans le workflow." },
-        { keywords: ["plus dans sap"], answer: "Si vous ouvrez une tâche dans XFlow Web, elle ne s’affiche plus dans SAP Business Workplace. Utilisez 'Replace' pour la rendre à nouveau visible." },
-        { keywords: ["envoyer", "facture"], answer: "Envoyez les factures à grohe.accountspayable.fr@grohe.com (XFlow)." },
-        { keywords: ["relance", "fournisseur"], answer: "Envoyez toute relance à PTP_SouthEU@emena.grohe.com." },
-        { keywords: ["modèle mail", "mail type"], answer: "Vous trouverez les mails types sur le SharePoint Finance > section Comptabilité Fournisseurs." },
-        { keywords: ["demande", "acompte"], answer: "Remplissez le formulaire disponible sur le SharePoint, avec PO, RIB, signature manager. À envoyer avant mardi soir." },
-        { keywords: ["délai", "paiement"], answer: "Si tout est validé mardi, le paiement est déclenché vendredi et visible sur le compte fournisseur le mardi suivant." }
-      ];
+      let bestMatch = null;
+      let highestScore = 0;
 
-      for (let item of qa) {
+      for (const item of qa) {
         let matchCount = 0;
-        for (let keyword of item.keywords) {
-          if (msg.includes(keyword) || levenshtein.distance(msg, keyword) <= 3) {
+        for (const keyword of item.keywords) {
+          if (msg.includes(keyword) || levenshtein.distance(msg, keyword) <= Math.min(3, Math.floor(keyword.length / 2))) {
             matchCount++;
           }
         }
-        if (matchCount >= Math.ceil(item.keywords.length / 2)) {
-          return item.answer;
+        const score = matchCount / item.keywords.length;
+        if (score > highestScore) {
+          highestScore = score;
+          bestMatch = item.answer;
         }
+      }
+
+      if (bestMatch && highestScore >= 0.5) {
+        return bestMatch;
       }
 
       return "Désolé, je n’ai pas compris. Essayez l'une de ces questions :<br>- Mon fournisseur n’a pas été payé<br>- Je veux une preuve de paiement<br>- Je ne peux pas me connecter à XFlow.";
